@@ -15,6 +15,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DH.DnsPodDdns", "DH.DnsPodDdns\DH.DnsPodDdns.csproj", "{2B4793CE-80F1-4D8C-8287-ECE1E031CE41}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DH.DnsPodDdns.Demo", "DH.DnsPodDdns.Demo\DH.DnsPodDdns.Demo.csproj", "{A1234567-1234-1234-1234-123456789ABC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -25,6 +27,10 @@ Global
 		{2B4793CE-80F1-4D8C-8287-ECE1E031CE41}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2B4793CE-80F1-4D8C-8287-ECE1E031CE41}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2B4793CE-80F1-4D8C-8287-ECE1E031CE41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1234567-1234-1234-1234-123456789ABC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1234567-1234-1234-1234-123456789ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1234567-1234-1234-1234-123456789ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1234567-1234-1234-1234-123456789ABC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
