@@ -1,10 +1,11 @@
 ﻿using DH.DnsPodDdns.JsonData;
+using System.Text.Json;
 
 namespace DH.DnsPodDdns;
 
 public class Dnspod
 {
-    public RecordData RecordList(string token, string domain)
+    public RecordData? RecordList(string token, string domain)
     {
         HttpContent httpContent = new FormUrlEncodedContent(new Dictionary<string, string>()
             {
@@ -26,7 +27,7 @@ public class Dnspod
         return recordData;
     }
 
-    public DdnsData Ddns(string token, string domain, string recordId, string subDomain, string recoreLine, string valueIp)
+    public DdnsData? Ddns(string token, string domain, string recordId, string subDomain, string recoreLine, string valueIp)
     {
         HttpContent httpContent = new FormUrlEncodedContent(new Dictionary<string, string>()
             {
@@ -37,15 +38,15 @@ public class Dnspod
                 {"sub_domain",subDomain },
                 {"record_line" ,recoreLine},
                 {"record_type", "A"},
-                {"value IP",valueIp }
+                {"value",valueIp }
             });
-        HttpClient httpClient = new HttpClient();
+        var httpClient = new HttpClient();
         var content = httpClient.PostAsync("https://dnsapi.cn/Record.Ddns", httpContent).Result;
-        DdnsData ddnsData = null;
+        DdnsData? ddnsData = null;
 
         if (content.IsSuccessStatusCode)
         {
-            string s = content.Content.ReadAsStringAsync().Result;
+            var s = content.Content.ReadAsStringAsync().Result;
             ddnsData = JsonSerializer.Deserialize<DdnsData>(s);
         }
 
