@@ -17,7 +17,7 @@ public class Record
     /// <summary>
     /// 
     /// </summary>
-    public int id { get; set; }
+    public long id { get; set; }
     /// <summary>
     /// 
     /// </summary>
