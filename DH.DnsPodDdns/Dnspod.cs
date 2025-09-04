@@ -12,6 +12,10 @@ public class Dnspod : IDisposable
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl = "https://dnsapi.cn";
     private bool _disposed = false;
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     /// <summary>
     /// 初始化DNSPod客户端
@@ -63,19 +67,37 @@ public class Dnspod : IDisposable
         {
             var httpContent = new FormUrlEncodedContent(parameters);
             var response = await _httpClient.PostAsync($"{_baseUrl}/Record.List", httpContent, cancellationToken).ConfigureAwait(false);
-            
+
+            var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
             if (!response.IsSuccessStatusCode)
             {
-                throw new HttpRequestException($"API请求失败: {response.StatusCode} - {response.ReasonPhrase}");
+                // 尝试解析出 status.message
+                try
+                {
+                    var errObj = JsonSerializer.Deserialize<RecordData>(raw, _jsonOptions);
+                    var apiMsg = errObj?.status?.message;
+                    throw new HttpRequestException($"API请求失败: {(int)response.StatusCode} {response.StatusCode} - {response.ReasonPhrase}; Body: {apiMsg ?? raw}");
+                }
+                catch (JsonException)
+                {
+                    throw new HttpRequestException($"API请求失败: {(int)response.StatusCode} {response.StatusCode} - {response.ReasonPhrase}; Raw: {raw}");
+                }
             }
 
-            var jsonString = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var recordData = JsonSerializer.Deserialize<RecordData>(jsonString);
+            RecordData? recordData = null;
+            try
+            {
+                recordData = JsonSerializer.Deserialize<RecordData>(raw, _jsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidOperationException($"JSON反序列化失败, 原始返回: {raw}", ex);
+            }
 
-            // 检查API返回的状态
             if (recordData?.status?.code != "1")
             {
-                throw new InvalidOperationException($"DNSPod API错误: {recordData?.status?.message}");
+                throw new InvalidOperationException($"DNSPod API错误: code={recordData?.status?.code}, message={recordData?.status?.message}");
             }
 
             return recordData;
@@ -133,19 +155,35 @@ public class Dnspod : IDisposable
         {
             var httpContent = new FormUrlEncodedContent(parameters);
             var response = await _httpClient.PostAsync($"{_baseUrl}/Record.Ddns", httpContent, cancellationToken).ConfigureAwait(false);
-            
+            var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
             if (!response.IsSuccessStatusCode)
             {
-                throw new HttpRequestException($"API请求失败: {response.StatusCode} - {response.ReasonPhrase}");
+                try
+                {
+                    var errObj = JsonSerializer.Deserialize<DdnsData>(raw, _jsonOptions);
+                    var apiMsg = errObj?.status?.message;
+                    throw new HttpRequestException($"API请求失败: {(int)response.StatusCode} {response.StatusCode} - {response.ReasonPhrase}; Body: {apiMsg ?? raw}");
+                }
+                catch (JsonException)
+                {
+                    throw new HttpRequestException($"API请求失败: {(int)response.StatusCode} {response.StatusCode} - {response.ReasonPhrase}; Raw: {raw}");
+                }
             }
 
-            var jsonString = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            var ddnsData = JsonSerializer.Deserialize<DdnsData>(jsonString);
+            DdnsData? ddnsData = null;
+            try
+            {
+                ddnsData = JsonSerializer.Deserialize<DdnsData>(raw, _jsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                throw new InvalidOperationException($"JSON反序列化失败, 原始返回: {raw}", ex);
+            }
 
-            // 检查API返回的状态
             if (ddnsData?.status?.code != "1")
             {
-                throw new InvalidOperationException($"DNSPod API错误: {ddnsData?.status?.message}");
+                throw new InvalidOperationException($"DNSPod API错误: code={ddnsData?.status?.code}, message={ddnsData?.status?.message}");
             }
 
             return ddnsData;
