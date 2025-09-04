@@ -1,5 +1,4 @@
-using DH.DnsPodDdns.Models;
-using DH.DnsPodDdns.Services;
+﻿using DH.DnsPodDdns.Services;
 using NewLife.Log;
 
 namespace DH.DnsPodDdns.Demo;
@@ -68,16 +67,21 @@ class Program
         Console.WriteLine();
 
         // 示例配置（请替换为你的真实配置）
-        var config = new DdnsConfig
-        {
-            Token = "你的DNSPod_Token",           // 格式：ID,Token
-            Domain = "example.com",              // 你的域名
-            SubDomain = "home",                  // 子域名
-            RecordLine = "默认",                 // 解析线路
-            Ttl = 600,                          // TTL值
-            UpdateInterval = 5,                 // 更新间隔（分钟）
-            EnableAutoUpdate = false            // 不启用自动更新
-        };
+        var config = DdnsSetting.Current;
+        
+        // 设置演示配置（如果尚未配置）
+        if (string.IsNullOrEmpty(config.Token))
+            config.Token = "你的DNSPod_Token";           // 格式：ID,Token
+        if (string.IsNullOrEmpty(config.Domain))
+            config.Domain = "example.com";               // 你的域名  
+        if (string.IsNullOrEmpty(config.SubDomain))
+            config.SubDomain = "home";                   // 子域名
+        if (string.IsNullOrEmpty(config.RecordLine))
+            config.RecordLine = "默认";                  // 解析线路
+        if (config.Ttl <= 0) 
+            config.Ttl = 600;                           // TTL值
+        if (config.UpdateInterval <= 0) 
+            config.UpdateInterval = 5;                  // 更新间隔（分钟）
 
         Console.WriteLine("配置信息:");
         Console.WriteLine($"  域名: {config.SubDomain}.{config.Domain}");
@@ -96,7 +100,6 @@ class Program
             }
             return;
         }
-
         Console.WriteLine("✅ 配置验证通过");
         Console.WriteLine();
 
@@ -111,7 +114,7 @@ class Program
 
         try
         {
-            using var ddnsService = new DdnsService(config);
+            using var ddnsService = new DdnsService();
 
             Console.WriteLine("正在执行DDNS更新...");
             var result = await ddnsService.UpdateAsync();

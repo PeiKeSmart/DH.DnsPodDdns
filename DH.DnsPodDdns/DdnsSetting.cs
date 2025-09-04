@@ -1,49 +1,60 @@
-namespace DH.DnsPodDdns.Models;
+﻿using System.ComponentModel;
 
-/// <summary>
-/// DDNS配置
-/// </summary>
-public class DdnsConfig
+using NewLife.Configuration;
+
+namespace DH.DnsPodDdns;
+
+/// <summary>配置</summary>
+[Config("Ddns")]
+public class DdnsSetting : Config<DdnsSetting>
 {
     /// <summary>
     /// DNSPod API Token
     /// </summary>
-    public string Token { get; set; } = string.Empty;
+    [Description("Ddns的Token")]
+    public String? Token { get; set; }
 
     /// <summary>
     /// 域名
     /// </summary>
-    public string Domain { get; set; } = string.Empty;
+    [Description("域名")]
+    public String? Domain { get; set; }
 
     /// <summary>
     /// 子域名
     /// </summary>
-    public string SubDomain { get; set; } = string.Empty;
+    [Description("子域名")]
+    public String? SubDomain { get; set; }
 
     /// <summary>
     /// 记录线路，默认为"默认"
     /// </summary>
-    public string RecordLine { get; set; } = "默认";
+    [Description("记录线路，默认为\"默认\"")]
+    public String? RecordLine { get; set; } = "默认";
 
     /// <summary>
     /// TTL值，默认600秒
     /// </summary>
-    public int Ttl { get; set; } = 600;
+    [Description("TTL值，默认600秒")]
+    public Int32 Ttl { get; set; } = 600;
 
     /// <summary>
     /// 自动更新间隔（分钟），默认5分钟
     /// </summary>
-    public int UpdateInterval { get; set; } = 5;
+    [Description("自动更新间隔（分钟），默认5分钟")]
+    public Int32 UpdateInterval { get; set; } = 5;
 
     /// <summary>
     /// 是否启用自动更新
     /// </summary>
-    public bool EnableAutoUpdate { get; set; } = false;
+    [Description("是否启用自动更新")]
+    public Boolean EnableAutoUpdate { get; set; } = false;
 
     /// <summary>
     /// 当目标子域记录不存在时是否自动创建，默认 false
     /// </summary>
-    public bool AutoCreateRecord { get; set; } = false;
+    [Description("当目标子域记录不存在时是否自动创建，默认 false")]
+    public Boolean AutoCreateRecord { get; set; } = false;
 
     /// <summary>
     /// 验证配置是否有效
@@ -51,15 +62,15 @@ public class DdnsConfig
     /// <returns>验证结果</returns>
     public ValidationResult Validate()
     {
-        var errors = new List<string>();
+        var errors = new List<String>();
 
-        if (string.IsNullOrWhiteSpace(Token))
+        if (String.IsNullOrWhiteSpace(Token))
             errors.Add("Token不能为空");
 
-        if (string.IsNullOrWhiteSpace(Domain))
+        if (String.IsNullOrWhiteSpace(Domain))
             errors.Add("Domain不能为空");
 
-        if (string.IsNullOrWhiteSpace(SubDomain))
+        if (String.IsNullOrWhiteSpace(SubDomain))
             errors.Add("SubDomain不能为空");
 
         if (Ttl < 1 || Ttl > 604800)
@@ -69,7 +80,7 @@ public class DdnsConfig
             errors.Add("更新间隔必须大于0");
 
         // 简单校验：Token 里至少包含一个逗号（避免只填后半段）
-        if (!string.IsNullOrWhiteSpace(Token) && !Token.Contains(','))
+        if (!String.IsNullOrWhiteSpace(Token) && !Token.Contains(','))
             errors.Add("Token 需要包含前置数字ID与逗号");
 
         return new ValidationResult
@@ -93,7 +104,7 @@ public class ValidationResult
     /// <summary>
     /// 错误信息列表
     /// </summary>
-    public List<string> Errors { get; set; } = new List<string>();
+    public List<String> Errors { get; set; } = new List<String>();
 
     /// <summary>
     /// 获取错误信息字符串

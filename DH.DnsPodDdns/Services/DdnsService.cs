@@ -1,9 +1,5 @@
-using DH.DnsPodDdns.JsonData;
-using DH.DnsPodDdns.Models;
-using DH.DnsPodDdns.Services;
-using DH.DnsPodDdns.Exceptions;
+﻿using DH.DnsPodDdns.JsonData;
 using NewLife.Log;
-using DdnsConfig = DH.DnsPodDdns.Models.DdnsConfig;
 
 namespace DH.DnsPodDdns.Services;
 
@@ -16,29 +12,31 @@ public class DdnsService : IDisposable
     private readonly IpAddressService _ipService;
     private readonly ILog _logger = XTrace.Log;
     private readonly Timer? _updateTimer;
-    private readonly DdnsConfig _config;
+    private readonly DdnsSetting _config;
     private string? _lastKnownIp;
     private bool _disposed = false;
 
     /// <summary>
     /// 初始化DDNS服务
     /// </summary>
-    /// <param name="config">DDNS配置</param>
     /// <param name="httpClient">HTTP客户端，如果为null则创建新实例</param>
-    public DdnsService(DdnsConfig config, HttpClient? httpClient = null)
+    public DdnsService(HttpClient? httpClient = null)
     {
-        // 验证配置
-        var validation = config.Validate();
-        if (!validation.IsValid)
-        {
-            throw new ArgumentException($"配置无效: {validation.GetErrorMessage()}", nameof(config));
-        }
+        _config = DdnsSetting.Current;
 
-        _config = config;
+        // 基本校验（沿用原逻辑的核心要点）
+        var errors = new List<string>();
+        if (string.IsNullOrWhiteSpace(_config.Token)) errors.Add("Token不能为空");
+        if (string.IsNullOrWhiteSpace(_config.Domain)) errors.Add("Domain不能为空");
+        if (string.IsNullOrWhiteSpace(_config.SubDomain)) errors.Add("SubDomain不能为空");
+        if (_config.Ttl < 1 || _config.Ttl > 604800) errors.Add("TTL值必须在1到604800之间");
+        if (_config.UpdateInterval < 1) errors.Add("更新间隔必须大于0");
+        if (!string.IsNullOrWhiteSpace(_config.Token) && !_config.Token.Contains(',')) errors.Add("Token 需要包含前置数字ID与逗号");
+        if (errors.Count > 0) throw new ArgumentException("配置无效: " + string.Join("; ", errors));
+
         _dnspodClient = new Dnspod(httpClient);
         _ipService = new IpAddressService(httpClient);
 
-        // 如果启用自动更新，创建定时器
         if (_config.EnableAutoUpdate)
         {
             var interval = TimeSpan.FromMinutes(_config.UpdateInterval);
@@ -83,18 +81,18 @@ public class DdnsService : IDisposable
             }
 
             // 3. 获取现有DNS记录
-            var records = await _dnspodClient.RecordListAsync(_config.Token, _config.Domain, "A", _config.SubDomain, cancellationToken).ConfigureAwait(false);
+        var records = await _dnspodClient.RecordListAsync(_config.Domain!, "A", _config.SubDomain!, cancellationToken).ConfigureAwait(false);
             if (records?.records == null || records.records.Count == 0)
             {
                 if (_config.AutoCreateRecord)
                 {
                     _logger.Warn($"未找到 {_config.SubDomain}.{_config.Domain} 的A记录，尝试自动创建...");
-                    var created = await _dnspodClient.CreateRecordAsync(_config.Token, _config.Domain, _config.SubDomain, currentIp, "A", _config.RecordLine, _config.Ttl, cancellationToken).ConfigureAwait(false);
+            var created = await _dnspodClient.CreateRecordAsync(_config.Domain!, _config.SubDomain!, currentIp, "A", _config.RecordLine ?? "默认", _config.Ttl, cancellationToken).ConfigureAwait(false);
                     if (created)
                     {
                         _logger.Info("记录创建成功，继续后续流程");
                         // 重新拉取记录
-                        records = await _dnspodClient.RecordListAsync(_config.Token, _config.Domain, "A", _config.SubDomain, cancellationToken).ConfigureAwait(false);
+                        records = await _dnspodClient.RecordListAsync(_config.Domain!, "A", _config.SubDomain, cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
@@ -147,11 +145,10 @@ public class DdnsService : IDisposable
 
             // 6. 执行DDNS更新
             var ddnsResult = await _dnspodClient.DdnsAsync(
-                _config.Token,
-                _config.Domain,
-                targetRecord.id,
-                _config.SubDomain,
-                targetRecord.line,
+                _config.Domain!,
+                targetRecord.id!,
+                _config.SubDomain!,
+                targetRecord.line!,
                 currentIp,
                 "A",
                 _config.Ttl,
@@ -205,7 +202,7 @@ public class DdnsService : IDisposable
     {
         try
         {
-            var records = await _dnspodClient.RecordListAsync(_config.Token, _config.Domain, "A", _config.SubDomain, cancellationToken).ConfigureAwait(false);
+                var records = await _dnspodClient.RecordListAsync(_config.Domain!, "A", _config.SubDomain!, cancellationToken).ConfigureAwait(false);
             
             return records?.records?.FirstOrDefault(r => 
                 r.name == _config.SubDomain && 

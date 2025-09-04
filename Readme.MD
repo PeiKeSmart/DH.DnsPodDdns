@@ -1,177 +1,166 @@
 ﻿# DH.DnsPodDdns
 
-基于腾讯云DNSPod的动态域名解析库，支持自动获取公网IP并更新DNS记录，适用于内网服务映射和家庭宽带动态IP场景。
+基于腾讯云 DNSPod 的动态域名解析（DDNS）库：自动获取公网 IP，仅在变化时更新 DNS 记录，支持定时任务与自动创建缺失记录，适合家庭宽带 / 自建服务。
 
-## 🚀 特性
+## ✨ 特性
 
-- ✅ **异步支持** - 全面的异步/同步API，提供更好的性能
-- ✅ **自动IP获取** - 支持多个IP获取服务，确保高可用性
-- ✅ **智能更新** - 只有IP变化时才更新DNS记录，减少API调用
-- ✅ **定时更新** - 支持自动定时检查和更新
-- ✅ **错误处理** - 完善的异常处理和日志记录
-- ✅ **资源管理** - 正确的资源管理和IDisposable实现
-- ✅ **配置验证** - 启动前验证配置的有效性
-- ✅ **多线路支持** - 支持DNSPod的不同解析线路
+- 异步 / 同步 API
+- 多源公网 IP 获取与回退
+- 仅在 IP 变化时更新（节省 API 调用）
+- 支持自动定时更新
+- 可选自动创建 A 记录
+- 结构简单、易嵌入
 
 ## 📦 安装
-
-通过NuGet包管理器安装：
 
 ```powershell
 Install-Package DH.DnsPodDdns
 ```
 
-或者通过.NET CLI：
-
 ```bash
 dotnet add package DH.DnsPodDdns
 ```
 
-## 🔧 快速开始
-
-### 1. 基本使用
+## 🚀 快速开始（使用全局配置 DdnsSetting）
 
 ```csharp
-using DH.DnsPodDdns.Models;
+using DH.DnsPodDdns;
 using DH.DnsPodDdns.Services;
 
-// 配置DDNS参数
-var config = new DdnsConfig
-{
-    Token = "your_dnspod_token",        // DNSPod API Token
-    Domain = "example.com",             // 你的域名
-    SubDomain = "home",                 // 子域名
-    RecordLine = "默认",                // 解析线路
-    Ttl = 600,                          // TTL值（秒）
-    UpdateInterval = 5,                 // 更新间隔（分钟）
-    EnableAutoUpdate = false            // 是否启用自动更新
-};
+var cfg = DdnsSetting.Current;
+cfg.Token = "12345,xxxxxxxxxxxxxxxx"; // 必填：格式 ID,Token
+cfg.Domain = "example.com";
+cfg.SubDomain = "home";
+cfg.RecordLine = "默认";
+cfg.Ttl = 600;
+cfg.UpdateInterval = 5;      // 分钟
+cfg.AutoCreateRecord = true; // 不存在则自动创建
+cfg.EnableAutoUpdate = false; // 示例关闭自动更新
 
-// 创建DDNS服务
-using var ddnsService = new DdnsService(config);
-
-// 执行一次更新
-var result = await ddnsService.UpdateAsync();
-
-if (result.Success)
-{
-    Console.WriteLine($"更新成功: {result.Message}");
-    if (result.Changed)
-    {
-        Console.WriteLine($"IP已从 {result.OldIpAddress} 更新为 {result.IpAddress}");
-    }
-}
-else
-{
-    Console.WriteLine($"更新失败: {result.Message}");
-}
+using var service = new DdnsService();
+var r = await service.UpdateAsync();
+Console.WriteLine(r.Success ? r.Message : "失败: " + r.Message);
 ```
 
-### 2. 启用自动更新
+## 🔁 启用自动更新
 
 ```csharp
-var config = new DdnsConfig
-{
-    Token = "your_dnspod_token",
-    Domain = "example.com",
-    SubDomain = "home",
-    UpdateInterval = 5,                 // 每5分钟检查一次
-    EnableAutoUpdate = true             // 启用自动更新
-};
-
-using var ddnsService = new DdnsService(config);
-
-// 自动更新已在后台运行
-Console.WriteLine("DDNS自动更新已启动，按任意键停止...");
+DdnsSetting.Current.EnableAutoUpdate = true;
+using var service = new DdnsService();
+Console.WriteLine("自动更新中，按任意键退出...");
 Console.ReadKey();
-
-// 停止自动更新
-ddnsService.StopAutoUpdate();
+service.StopAutoUpdate();
 ```
 
-### 3. 仅获取公网IP
+## 🌐 获取公网 IP
 
 ```csharp
 using DH.DnsPodDdns.Services;
-
-using var ipService = new IpAddressService();
-var ip = await ipService.GetPublicIpAsync();
-
-Console.WriteLine($"当前公网IP: {ip}");
+var ip = await new IpAddressService().GetPublicIpAsync();
+Console.WriteLine(ip);
 ```
 
-### 4. 直接使用DNSPod API
+## 🔧 直接调用底层 DNSPod API
 
 ```csharp
-using var dnspod = new Dnspod();
-
-// 获取域名记录
-var records = await dnspod.RecordListAsync("your_token", "example.com");
-
-// 更新特定记录
-var result = await dnspod.DdnsAsync(
-    "your_token", 
-    "example.com", 
-    "record_id", 
-    "subdomain", 
-    "默认", 
-    "1.2.3.4"
-);
+using DH.DnsPodDdns;
+DdnsSetting.Current.Token = "12345,xxxxxxxx";
+using var api = new Dnspod();
+var list = await api.RecordListAsync("example.com", "A", "home");
 ```
 
-## 🔑 获取DNSPod Token
-
-1. 登录 [DNSPod控制台](https://console.dnspod.cn/)
-2. 进入 "用户中心" -> "安全设置" -> "API Token"
-3. 创建新的Token，格式为：`ID,Token`
-4. 例如：`12345,abcdef123456789`
-
-## ⚙️ 配置说明
-
-### DdnsConfig 配置项
+## ⚙️ 配置项（DdnsSetting）
 
 | 属性 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| Token | string | ✅ | - | DNSPod API Token |
-| Domain | string | ✅ | - | 主域名 |
-| SubDomain | string | ✅ | - | 子域名 |
-| RecordLine | string | ❌ | "默认" | 解析线路 |
-| Ttl | int | ❌ | 600 | TTL值（1-604800秒） |
+| Token | string | ✅ | - | DNSPod Token（ID,Token） |
+| Domain | string | ✅ | - | 主域名，如 example.com |
+| SubDomain | string | ✅ | - | 子域名，如 home |
+| RecordLine | string | ❌ | 默认 | 解析线路（默认/电信/联通/移动/教育网/境外） |
+| Ttl | int | ❌ | 600 | TTL 秒（1-604800） |
 | UpdateInterval | int | ❌ | 5 | 自动更新间隔（分钟） |
-| EnableAutoUpdate | bool | ❌ | false | 是否启用自动更新 |
+| EnableAutoUpdate | bool | ❌ | false | 是否启用定时更新 |
+| AutoCreateRecord | bool | ❌ | false | 记录不存在时自动创建 |
 
-### 解析线路选项
-
-- `默认` - 默认线路
-- `电信` - 电信线路
-- `联通` - 联通线路
-- `移动` - 移动线路
-- `教育网` - 教育网线路
-- `境外` - 境外线路
-
-## 📊 日志记录
-
-库使用XTrace进行日志记录，你可以配置日志输出：
+## 🧪 错误处理示例
 
 ```csharp
-// 配置XTrace日志
-XTrace.UseConsole();
-// 或者
-XTrace.UseFile("ddns.log");
-
-// 设置日志级别
-XTrace.Level = LogLevel.Info;
+try
+{
+    var result = await service.UpdateAsync();
+    if (!result.Success) Console.WriteLine("更新失败: " + result.Message);
+}
+catch (ArgumentException ex) { Console.WriteLine("配置错误: " + ex.Message); }
+catch (TimeoutException) { Console.WriteLine("请求超时"); }
+catch (Exception ex) { Console.WriteLine("未知错误: " + ex.Message); }
 ```
 
-## 🔧 高级用法
+## 📋 API 速览
 
-### 自定义HttpClient
+### DdnsService
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| UpdateAsync() | Task&lt;DdnsUpdateResult&gt; | 执行一次更新 |
+| Update() | DdnsUpdateResult | 同步更新 |
+| GetDnsRecordAsync() | Task&lt;RecordsItem?&gt; | 获取当前记录 |
+| GetDnsRecord() | RecordsItem? | 同步获取 |
+| StartAutoUpdate() | void | 启动定时更新 |
+| StopAutoUpdate() | void | 停止定时更新 |
+
+### Dnspod
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| RecordListAsync(domain, type?, sub?) | Task&lt;RecordData?&gt; | 获取域名记录列表 |
+| DdnsAsync(domain, recordId, sub, line, value, type?, ttl?) | Task&lt;DdnsData?&gt; | 动态更新 |
+
+### IpAddressService
+
+| 方法 | 返回 | 说明 |
+|------|------|------|
+| GetPublicIpAsync() | Task&lt;string?&gt; | 获取公网 IP |
+| GetPublicIp() | string? | 同步获取 |
+
+## 🧾 日志
 
 ```csharp
-using var httpClient = new HttpClient();
-httpClient.Timeout = TimeSpan.FromSeconds(30);
+using NewLife.Log;
+XTrace.UseConsole();
+XTrace.Level = NewLife.Log.LogLevel.Info; // 或 Debug
+```
 
-var config = new DdnsConfig { /* 配置 */ };
+## �️ 常见问题
+
+1. 未更新：IP 可能未变化 / 线路不匹配。
+2. Token 错误：确认格式 `ID,Token` 且有效。
+3. 记录不存在：开启 AutoCreateRecord。
+4. 超时：检查网络或调大 HttpClient 超时。
+
+## 🔍 调试
+
+```csharp
+XTrace.Level = NewLife.Log.LogLevel.Debug; // 输出调试级别日志
+```
+
+## �📄 许可证
+
+MIT，见 [LICENSE](LICENSE)
+
+## 🤝 贡献
+
+欢迎提交 Issue / PR。
+
+## 📞 支持
+
+- 项目主页：<https://github.com/PeiKeSmart/DH.DnsPodDdns>
+- 问题反馈：<https://github.com/PeiKeSmart/DH.DnsPodDdns/issues>
+- 公司官网：<https://www.haocoding.com/>
+
+---
+© 2020-2025 湖北登灏科技有限公司
+
+基于 DNSPod 的动态域名解析库。
 using var ddnsService = new DdnsService(config, httpClient);
 ```
 

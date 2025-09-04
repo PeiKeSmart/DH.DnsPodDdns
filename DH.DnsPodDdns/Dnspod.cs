@@ -2,6 +2,8 @@
 
 using DH.DnsPodDdns.JsonData;
 
+using NewLife;
+
 namespace DH.DnsPodDdns;
 
 /// <summary>
@@ -10,11 +12,12 @@ namespace DH.DnsPodDdns;
 public class Dnspod : IDisposable
 {
     private readonly HttpClient _httpClient;
-    private readonly string _baseUrl = "https://dnsapi.cn";
-    private bool _disposed = false;
+    private readonly String _baseUrl = "https://dnsapi.cn";
+    private Boolean _disposed = false;
+
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true  //  JSON 反序列化时，属性名的大小写将被忽略。
     };
 
     /// <summary>
@@ -36,23 +39,22 @@ public class Dnspod : IDisposable
     /// <summary>
     /// 获取域名的DNS记录列表
     /// </summary>
-    /// <param name="token">DNSPod API Token</param>
     /// <param name="domain">域名</param>
     /// <param name="recordType">记录类型，默认为A记录</param>
     /// <param name="subDomain">子域名，可选</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>记录数据</returns>
-    public async Task<RecordData?> RecordListAsync(string token, string domain, string recordType = "A", 
-        string? subDomain = null, CancellationToken cancellationToken = default)
+    public async Task<RecordData?> RecordListAsync(String domain, String recordType = "A", 
+        String? subDomain = null, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(token))
-            throw new ArgumentException("Token不能为空", nameof(token));
+        if (DdnsSetting.Current.Token.IsNullOrWhiteSpace())
+            throw new ArgumentException("Token不能为空", nameof(DdnsSetting.Current.Token));
         if (string.IsNullOrWhiteSpace(domain))
             throw new ArgumentException("Domain不能为空", nameof(domain));
 
-        var parameters = new Dictionary<string, string>
+        var parameters = new Dictionary<String, String>
         {
-            { "login_token", token },
+            { "login_token", DdnsSetting.Current.Token },
             { "record_type", recordType },
             { "format", "json" },
             { "domain", domain }
@@ -116,34 +118,21 @@ public class Dnspod : IDisposable
     }
 
     /// <summary>
-    /// 更新DNS记录（DDNS）
+    /// 更新DNS记录（DDNS），基于全局配置 <see cref="DdnsSetting"/> 读取 Token
     /// </summary>
-    /// <param name="token">DNSPod API Token</param>
-    /// <param name="domain">域名</param>
-    /// <param name="recordId">记录ID</param>
-    /// <param name="subDomain">子域名</param>
-    /// <param name="recordLine">记录线路</param>
-    /// <param name="value">记录值（IP地址）</param>
-    /// <param name="recordType">记录类型，默认为A记录</param>
-    /// <param name="ttl">TTL值，默认600秒</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>DDNS更新结果</returns>
-    public async Task<DdnsData?> DdnsAsync(string token, string domain, string recordId, string subDomain, 
-        string recordLine, string value, string recordType = "A", int ttl = 600, 
+    public async Task<DdnsData?> DdnsAsync(string domain, string recordId, string subDomain,
+        string recordLine, string value, string recordType = "A", int ttl = 600,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(token))
-            throw new ArgumentException("Token不能为空", nameof(token));
-        if (string.IsNullOrWhiteSpace(domain))
-            throw new ArgumentException("Domain不能为空", nameof(domain));
-        if (string.IsNullOrWhiteSpace(recordId))
-            throw new ArgumentException("RecordId不能为空", nameof(recordId));
-        if (string.IsNullOrWhiteSpace(value))
-            throw new ArgumentException("Value不能为空", nameof(value));
+        var token = DdnsSetting.Current.Token;
+        if (token.IsNullOrWhiteSpace()) throw new ArgumentException("Token不能为空", nameof(DdnsSetting.Current.Token));
+        if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentException("Domain不能为空", nameof(domain));
+        if (string.IsNullOrWhiteSpace(recordId)) throw new ArgumentException("RecordId不能为空", nameof(recordId));
+        if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("Value不能为空", nameof(value));
 
         var parameters = new Dictionary<string, string>
         {
-            { "login_token", token },
+            { "login_token", token! },
             { "format", "json" },
             { "domain", domain },
             { "record_id", recordId },
@@ -204,16 +193,16 @@ public class Dnspod : IDisposable
     /// <summary>
     /// 创建新的 DNS 记录
     /// </summary>
-    public async Task<bool> CreateRecordAsync(string token, string domain, string subDomain, string value, string recordType = "A", string recordLine = "默认", int ttl = 600, CancellationToken cancellationToken = default)
+    public async Task<Boolean> CreateRecordAsync(string domain, string subDomain, string value, string recordType = "A", string recordLine = "默认", int ttl = 600, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(token)) throw new ArgumentException("Token不能为空", nameof(token));
+        if (DdnsSetting.Current.Token.IsNullOrWhiteSpace()) throw new ArgumentException("Token不能为空", nameof(DdnsSetting.Current.Token));
         if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentException("Domain不能为空", nameof(domain));
         if (string.IsNullOrWhiteSpace(subDomain)) throw new ArgumentException("SubDomain不能为空", nameof(subDomain));
         if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("Value不能为空", nameof(value));
 
-        var parameters = new Dictionary<string, string>
+        var parameters = new Dictionary<String, String>
         {
-            { "login_token", token },
+            { "login_token", DdnsSetting.Current.Token },
             { "format", "json" },
             { "domain", domain },
             { "sub_domain", subDomain },
@@ -245,19 +234,17 @@ public class Dnspod : IDisposable
     /// <summary>
     /// 同步版本 - 获取域名的DNS记录列表
     /// </summary>
-    public RecordData? RecordList(string token, string domain, string recordType = "A", string? subDomain = null)
+    public RecordData? RecordList(string domain, string recordType = "A", string? subDomain = null)
     {
-        return RecordListAsync(token, domain, recordType, subDomain).GetAwaiter().GetResult();
+        return RecordListAsync(domain, recordType, subDomain).GetAwaiter().GetResult();
     }
 
     /// <summary>
     /// 同步版本 - 更新DNS记录（DDNS）
     /// </summary>
-    public DdnsData? Ddns(string token, string domain, string recordId, string subDomain, 
+    public DdnsData? Ddns(string domain, string recordId, string subDomain,
         string recordLine, string value, string recordType = "A", int ttl = 600)
-    {
-        return DdnsAsync(token, domain, recordId, subDomain, recordLine, value, recordType, ttl).GetAwaiter().GetResult();
-    }
+        => DdnsAsync(domain, recordId, subDomain, recordLine, value, recordType, ttl).GetAwaiter().GetResult();
 
     /// <summary>
     /// 释放资源
