@@ -86,12 +86,37 @@ public class DdnsService : IDisposable
             var records = await _dnspodClient.RecordListAsync(_config.Token, _config.Domain, "A", _config.SubDomain, cancellationToken).ConfigureAwait(false);
             if (records?.records == null || records.records.Count == 0)
             {
-                var error = $"未找到子域名 {_config.SubDomain} 的A记录";
-                _logger.Error(error);
-                return new DdnsUpdateResult { Success = false, Message = error };
+                if (_config.AutoCreateRecord)
+                {
+                    _logger.Warn($"未找到 {_config.SubDomain}.{_config.Domain} 的A记录，尝试自动创建...");
+                    var created = await _dnspodClient.CreateRecordAsync(_config.Token, _config.Domain, _config.SubDomain, currentIp, "A", _config.RecordLine, _config.Ttl, cancellationToken).ConfigureAwait(false);
+                    if (created)
+                    {
+                        _logger.Info("记录创建成功，继续后续流程");
+                        // 重新拉取记录
+                        records = await _dnspodClient.RecordListAsync(_config.Token, _config.Domain, "A", _config.SubDomain, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        var msg = "自动创建记录失败";
+                        _logger.Error(msg);
+                        return new DdnsUpdateResult { Success = false, Message = msg };
+                    }
+                }
+                else
+                {
+                    var error = $"未找到子域名 {_config.SubDomain} 的A记录";
+                    _logger.Error(error);
+                    return new DdnsUpdateResult { Success = false, Message = error };
+                }
             }
 
             // 4. 查找匹配的记录
+            if (records?.records == null || records.records.Count == 0)
+            {
+                return new DdnsUpdateResult { Success = false, Message = "记录集合为空" };
+            }
+
             var targetRecord = records.records.FirstOrDefault(r => 
                 r.name == _config.SubDomain && 
                 r.type == "A" && 

@@ -97,6 +97,9 @@ public class Dnspod : IDisposable
 
             if (recordData?.status?.code != "1")
             {
+                // code=10 记录列表为空 => 返回空对象而不是抛异常
+                if (recordData?.status?.code == "10")
+                    return new RecordData { status = recordData.status, domain = recordData.domain, info = recordData.info, records = new List<RecordsItem>() };
                 throw new InvalidOperationException($"DNSPod API错误: code={recordData?.status?.code}, message={recordData?.status?.message}");
             }
 
@@ -195,6 +198,47 @@ public class Dnspod : IDisposable
         catch (JsonException ex)
         {
             throw new InvalidOperationException("JSON反序列化失败", ex);
+        }
+    }
+
+    /// <summary>
+    /// 创建新的 DNS 记录
+    /// </summary>
+    public async Task<bool> CreateRecordAsync(string token, string domain, string subDomain, string value, string recordType = "A", string recordLine = "默认", int ttl = 600, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(token)) throw new ArgumentException("Token不能为空", nameof(token));
+        if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentException("Domain不能为空", nameof(domain));
+        if (string.IsNullOrWhiteSpace(subDomain)) throw new ArgumentException("SubDomain不能为空", nameof(subDomain));
+        if (string.IsNullOrWhiteSpace(value)) throw new ArgumentException("Value不能为空", nameof(value));
+
+        var parameters = new Dictionary<string, string>
+        {
+            { "login_token", token },
+            { "format", "json" },
+            { "domain", domain },
+            { "sub_domain", subDomain },
+            { "record_type", recordType },
+            { "record_line", recordLine },
+            { "value", value },
+            { "ttl", ttl.ToString() }
+        };
+
+        var httpContent = new FormUrlEncodedContent(parameters);
+        var response = await _httpClient.PostAsync($"{_baseUrl}/Record.Create", httpContent, cancellationToken).ConfigureAwait(false);
+        var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException($"API请求失败: {(int)response.StatusCode} {response.StatusCode} - {response.ReasonPhrase}; Raw: {raw}");
+
+        try
+        {
+            var result = JsonSerializer.Deserialize<DdnsData>(raw, _jsonOptions);
+            if (result?.status?.code == "1") return true;
+            return false;
+        }
+        catch (JsonException)
+        {
+            return false;
         }
     }
 

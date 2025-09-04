@@ -41,6 +41,11 @@ public class DdnsConfig
     public bool EnableAutoUpdate { get; set; } = false;
 
     /// <summary>
+    /// 当目标子域记录不存在时是否自动创建，默认 false
+    /// </summary>
+    public bool AutoCreateRecord { get; set; } = false;
+
+    /// <summary>
     /// 验证配置是否有效
     /// </summary>
     /// <returns>验证结果</returns>
@@ -62,6 +67,10 @@ public class DdnsConfig
 
         if (UpdateInterval < 1)
             errors.Add("更新间隔必须大于0");
+
+        // 简单校验：Token 里至少包含一个逗号（避免只填后半段）
+        if (!string.IsNullOrWhiteSpace(Token) && !Token.Contains(','))
+            errors.Add("Token 需要包含前置数字ID与逗号");
 
         return new ValidationResult
         {

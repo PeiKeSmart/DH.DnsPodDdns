@@ -5,11 +5,11 @@ public class DdnsData
     /// <summary>
     /// 
     /// </summary>
-    public Status status { get; set; }
+    public Status status { get; set; } = new();
     /// <summary>
     /// 
     /// </summary>
-    public Record record { get; set; }
+    public Record record { get; set; } = new();
 }
 
 public class Record
@@ -21,9 +21,9 @@ public class Record
     /// <summary>
     /// 
     /// </summary>
-    public string name { get; set; }
+    public string name { get; set; } = string.Empty;
     /// <summary>
     /// 
     /// </summary>
-    public string value { get; set; }
+    public string value { get; set; } = string.Empty;
 }
