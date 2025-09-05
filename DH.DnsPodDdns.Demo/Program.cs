@@ -1,5 +1,7 @@
 ﻿using DH.DnsPodDdns.Services;
+using DH.DnsPodDdns.JsonData;
 using NewLife.Log;
+using System.Text.Json;
 
 namespace DH.DnsPodDdns.Demo;
 
@@ -12,6 +14,9 @@ class Program
 
         Console.WriteLine("=== DH.DnsPodDdns 演示程序 ===");
         Console.WriteLine();
+
+        // 演示0：测试JSON反序列化修复
+        await TestJsonDeserialization();
 
         // 演示1：获取公网IP
         await DemoGetPublicIp();
@@ -161,5 +166,68 @@ class Program
         {
             Console.WriteLine($"❌ 操作失败: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// 测试JSON反序列化修复（大整数ID）
+    /// </summary>
+    static async Task TestJsonDeserialization()
+    {
+        Console.WriteLine("=== 演示0：测试JSON反序列化修复 ===");
+        
+        // 模拟DNSPod API返回的包含大整数ID的JSON响应
+        string testJson = """
+        {
+            "status": {
+                "code": "1",
+                "message": "操作已经成功完成",
+                "created_at": "2025-09-04 20:11:44"
+            },
+            "record": {
+                "id": 2177338149,
+                "name": "nuget",
+                "value": "119.123.238.22"
+            }
+        }
+        """;
+
+        try
+        {
+            Console.WriteLine("正在测试大整数ID的JSON反序列化...");
+            Console.WriteLine($"测试JSON: {testJson}");
+            Console.WriteLine();
+
+            // 尝试反序列化
+            var ddnsData = JsonSerializer.Deserialize<DdnsData>(testJson, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (ddnsData?.record != null)
+            {
+                Console.WriteLine("✅ JSON反序列化成功！");
+                Console.WriteLine($"   Record ID: {ddnsData.record.id}");
+                Console.WriteLine($"   Record Name: {ddnsData.record.name}");
+                Console.WriteLine($"   Record Value: {ddnsData.record.value}");
+                Console.WriteLine($"   Status Code: {ddnsData.status?.code}");
+                Console.WriteLine($"   Status Message: {ddnsData.status?.message}");
+            }
+            else
+            {
+                Console.WriteLine("❌ 反序列化结果为空");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ JSON反序列化失败: {ex.Message}");
+            Console.WriteLine($"   异常类型: {ex.GetType().Name}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"   内部异常: {ex.InnerException.Message}");
+            }
+        }
+
+        Console.WriteLine();
+        await Task.CompletedTask;
     }
 }
